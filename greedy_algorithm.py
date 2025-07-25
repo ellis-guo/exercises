@@ -105,6 +105,7 @@ class GreedyWorkoutSelector:
         schedule = self.schedules[training_days]
 
         weekly_plan = {}
+        global_selected_ids = set()  # 追踪整周已选动作，避免重复
 
         for day_index, day_type in enumerate(schedule):
             if day_type == "rest":
@@ -119,8 +120,13 @@ class GreedyWorkoutSelector:
                     day_index,
                     day_type,
                     template_name,
-                    muscle_preferences
+                    muscle_preferences,
+                    global_selected_ids  # 传递全局已选动作集合
                 )
+
+                # 更新全局已选动作集合
+                for ex in exercises_with_scores:
+                    global_selected_ids.add(ex['pk'])
 
                 # 计算当日总分
                 total_day_score = sum(ex['score']
@@ -135,7 +141,8 @@ class GreedyWorkoutSelector:
         return weekly_plan
 
     def _select_exercises_for_day(self, day_index: int, day_type: str,
-                                  template_name: str, muscle_preferences: Dict) -> List[Dict]:
+                                  template_name: str, muscle_preferences: Dict,
+                                  global_selected_ids: Set[int]) -> List[Dict]:
         """为特定的一天选择5个动作，返回包含分数的列表"""
         # 1. 获取今天要训练的动作ID列表
         if template_name:
@@ -178,7 +185,8 @@ class GreedyWorkoutSelector:
                     data['exercise'],
                     position,
                     selected_exercises,
-                    selected_families
+                    selected_families,
+                    global_selected_ids  # 传递全局已选动作集合
                 )
 
                 total_score = data['static_score'] + dynamic_score
@@ -249,7 +257,8 @@ class GreedyWorkoutSelector:
 
     def _calculate_dynamic_score(self, exercise: Dict, position: int,
                                  selected_exercises: List[Dict],
-                                 selected_families: Set[str]) -> float:
+                                 selected_families: Set[str],
+                                 global_selected_ids: Set[int]) -> float:
         """计算动态分数"""
         score = 0
         exercise_id = exercise['pk']
@@ -309,6 +318,12 @@ class GreedyWorkoutSelector:
         family = self._get_exercise_family(exercise_id)
         if family and family in selected_families:
             score += self.config['diversity_rules']['same_family_penalty']
+
+        # 全周重复动作扣分
+        if exercise_id in global_selected_ids:
+            # 默认-20分
+            score += self.config['diversity_rules'].get(
+                'same_exercise_penalty', -20)
 
         return score
 

@@ -22,6 +22,7 @@
         "machine_threshold": 3,
         "machine_bonus": 3,
         "free_weight_bonus": 4,
-        "same_family_penalty": -8
+        "same_family_penalty": -8,
+        "same_exercise_penalty": -20
     }
 }
