@@ -52,6 +52,21 @@ class GreedyWorkoutSelector:
         "trap": 1.0,
         "tricep": 1.0
     }
+
+    # 排除的动作（因为没有器械或其他原因不做的动作）
+    # 可以使用动作ID(pk)或动作名称
+    EXCLUDED_EXERCISES = {
+        # 示例：使用动作ID
+        # 36,  # Row – T-Bar
+        # 71,  # Calf Raise – Machine
+
+        # 示例：使用动作名称（部分匹配）
+        # "T-Bar",
+        # "Smith Machine",
+        # "Leg Press",
+        # "Cable",
+        # "Machine",
+    }
     # ========== 配置区结束 ==========
 
     def __init__(self):
@@ -158,6 +173,21 @@ class GreedyWorkoutSelector:
 
         return weekly_plan
 
+    def _is_exercise_excluded(self, exercise: Dict) -> bool:
+        """检查动作是否在排除列表中"""
+        # 检查ID
+        if exercise['pk'] in self.EXCLUDED_EXERCISES:
+            return True
+
+        # 检查名称（部分匹配）
+        for excluded in self.EXCLUDED_EXERCISES:
+            if isinstance(excluded, str):
+                # 如果是字符串，检查是否包含在动作名称中
+                if excluded.lower() in exercise['name'].lower():
+                    return True
+
+        return False
+
     def _select_exercises_for_day(self, day_index: int, day_type: str,
                                   template_name: str, muscle_preferences: Dict,
                                   global_selected_ids: Set[int]) -> List[Dict]:
@@ -174,7 +204,8 @@ class GreedyWorkoutSelector:
         exercise_scores = {}
         for exercise_id in exercise_ids:
             exercise = self._get_exercise_by_id(exercise_id)
-            if exercise:
+            # 检查是否被排除
+            if exercise and not self._is_exercise_excluded(exercise):
                 static_score = self._calculate_static_score(
                     exercise, muscle_preferences)
                 exercise_scores[exercise_id] = {
@@ -380,6 +411,20 @@ class GreedyWorkoutSelector:
                 self._safe_print(f"  {muscle}: {coef}")
         else:
             self._safe_print("  All muscles: 1.0 (default)")
+
+        # 显示排除的动作
+        if self.EXCLUDED_EXERCISES:
+            self._safe_print("\nExcluded Exercises:")
+            for excluded in self.EXCLUDED_EXERCISES:
+                if isinstance(excluded, int):
+                    # 如果是ID，尝试找到对应的动作名称
+                    ex = self._get_exercise_by_id(excluded)
+                    if ex:
+                        self._safe_print(f"  - [{excluded}] {ex['name']}")
+                    else:
+                        self._safe_print(f"  - ID: {excluded}")
+                else:
+                    self._safe_print(f"  - Contains: '{excluded}'")
 
         for day, plan in weekly_plan.items():
             self._safe_print(f"\n{day}: {plan['type']}")
