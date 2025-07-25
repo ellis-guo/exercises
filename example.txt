@@ -1,0 +1,17 @@
+user_input = {
+    "training_days": 3,
+    "muscle_preferences": {
+        "chest": 2,
+        "back": 1.5,
+        "glute": 2,
+    }
+}
+
+先问训练几天？回答：3，那就套第三天的模板。
+然后再问是否有偏好，给个回答的范例。
+回答应该是这样的：
+{
+        "chest": 1.5,
+        "back": 1.3,
+        "glute": 2,
+    }
