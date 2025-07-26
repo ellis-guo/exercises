@@ -39,6 +39,17 @@
       "free_weight_bonus": 1
     },
     "same_family_penalty": -5,
-    "same_exercise_penalty": -8
+    "same_exercise_penalty": -8,
+    "core_exercise_bonus": {
+      "positions": [0, 1, 2, 3, 4],
+      "bonus_scores": [8, 6, 4, 3, 3],
+      "comment": "所有位置都给核心动作加分，前面位置加分更多"
+    },
+    "compound_position_bonus": {
+      "positions": [0, 1, 2, 3, 4],
+      "compound_extra": [4, 3, 1, 0, -1],
+      "isolation_extra": [-3, -2, 0, 1, 2],
+      "comment": "额外的位置加分，强化前面选复合、后面选孤立"
+    }
   }
 }
