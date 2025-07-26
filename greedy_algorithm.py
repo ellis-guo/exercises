@@ -26,7 +26,7 @@ if sys.platform.startswith('win'):
 class GreedyWorkoutSelector:
     # ========== 用户配置区 ==========
     # 训练天数设置 (1-7)
-    TRAINING_DAYS = 4
+    TRAINING_DAYS = 6
 
     # 肌群系数预设（方便修改）
     DEFAULT_MUSCLE_PREFERENCES = {
@@ -56,16 +56,7 @@ class GreedyWorkoutSelector:
     # 排除的动作（因为没有器械或其他原因不做的动作）
     # 可以使用动作ID(pk)或动作名称
     EXCLUDED_EXERCISES = {
-        # 示例：使用动作ID
-        # 36,  # Row – T-Bar
-        # 71,  # Calf Raise – Machine
-
-        # 示例：使用动作名称（部分匹配）
-        # "T-Bar",
-        # "Smith Machine",
-        # "Leg Press",
-        # "Cable",
-        # "Machine",
+        35
     }
     # ========== 配置区结束 ==========
 
@@ -370,9 +361,9 @@ class GreedyWorkoutSelector:
 
         # 全周重复动作扣分
         if exercise_id in global_selected_ids:
-            # 默认-20分
+            # 默认-8分
             score += self.config['diversity_rules'].get(
-                'same_exercise_penalty', -20)
+                'same_exercise_penalty', 8)
 
         return score
 

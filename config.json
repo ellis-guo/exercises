@@ -1,28 +1,28 @@
 {
-    "scoring_weights": {
-        "primary_muscle": 3,
-        "secondary_muscle": 2
-    },
-    "position_scores": {
-        "compound": [5, 3, 1, 0, -2],
-        "isolation": [-2, 0, 1, 3, 5],
-        "free_weight": [4, 2, 0, 0, 0],
-        "machine": [0, 0, 0, 2, 4]
-    },
-    "diversity_rules": {
-        "min_bilateral_for_bonus": 2,
-        "bilateral_threshold": 3,
-        "bilateral_bonus": 3,
-        "unilateral_bonus": 4,
-        "min_compound_for_bonus": 2,
-        "compound_threshold": 3,
-        "compound_bonus": 3,
-        "isolation_bonus": 4,
-        "min_machine_for_bonus": 2,
-        "machine_threshold": 3,
-        "machine_bonus": 3,
-        "free_weight_bonus": 4,
-        "same_family_penalty": -8,
-        "same_exercise_penalty": -20
-    }
+  "scoring_weights": {
+    "primary_muscle": 3,
+    "secondary_muscle": 2
+  },
+  "position_scores": {
+    "compound": [5, 3, 1, 0, -2],
+    "isolation": [-3, -1, 1, 2, 2],  
+    "free_weight": [3, 2, 1, 0, 0],  
+    "machine": [0, 0, 1, 1, 2]         
+  },
+  "diversity_rules": {
+    "min_bilateral_for_bonus": 2,
+    "bilateral_threshold": 3,
+    "bilateral_bonus": 2,             
+    "unilateral_bonus": 2,             
+    "min_compound_for_bonus": 2,
+    "compound_threshold": 3,
+    "compound_bonus": 2,              
+    "isolation_bonus": 2,              
+    "min_machine_for_bonus": 1,       
+    "machine_threshold": 3,
+    "machine_bonus": 1,                
+    "free_weight_bonus": 1,            
+    "same_family_penalty": -5,         
+    "same_exercise_penalty": -8
+  }
 }
