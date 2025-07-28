@@ -1,0 +1,42 @@
+{
+  "1": [["chest", "back", "shoulder", "tricep", "bicep", "legs"]],
+  "2": [
+    ["chest", "shoulder", "tricep"],
+    ["back", "bicep", "legs"]
+  ],
+  "3": [
+    ["chest", "shoulder", "tricep"],
+    ["legs"],
+    ["back", "bicep"]
+  ],
+  "4": [
+    ["chest", "shoulder", "tricep"],
+    ["back", "bicep", "legs"],
+    ["chest", "shoulder", "tricep"],
+    ["back", "bicep", "legs"]
+  ],
+  "5": [
+    ["chest"],
+    ["legs"],
+    ["back"],
+    ["shoulder"],
+    ["bicep", "tricep"]
+  ],
+  "6": [
+    ["chest", "shoulder", "tricep"],
+    ["legs"],
+    ["back", "bicep"],
+    ["chest", "shoulder", "tricep"],
+    ["legs"],
+    ["back", "bicep"]
+  ],
+  "7": [
+    ["chest", "shoulder", "tricep"],
+    ["legs"],
+    ["back", "bicep"],
+    ["chest", "shoulder", "tricep"],
+    ["legs"],
+    ["back", "bicep"],
+    ["chest", "shoulder", "tricep"]
+  ]
+}

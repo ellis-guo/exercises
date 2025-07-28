@@ -1,0 +1,33 @@
+{
+    "chest": ["chest"],
+    "back": [
+        "lat",
+        "lower back",
+        "trap",
+        "rotator cuff - back"
+    ],
+    "shoulder": [
+        "shoulder - front",
+        "shoulder - back",
+        "shoulder - side",
+        "rotator cuff - front"
+    ],
+    "arm": [
+        "bicep",
+        "tricep",
+        "forearm - inner",
+        "forearm - outer"
+    ],
+    "leg": [
+        "quad",
+        "hamstring",
+        "calf",
+        "glute",
+        "thigh - inner",
+        "thigh - outer"
+    ],
+    "core": [
+        "abdominal",
+        "oblique"
+    ]
+}

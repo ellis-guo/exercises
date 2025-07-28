@@ -2,54 +2,66 @@
   "scoring_weights": {
     "primary_muscle": {
       "base_score": 3.0,
-      "decay_factor": 0.85,
-      "full_score_limit": 3,
-      "comment": "前3个主肌群得满分，之后按decay_factor递减"
+      "comment": "主肌群基础分，将被肌群数量分摊"
     },
     "secondary_muscle": {
-      "base_score": 1.5,
-      "decay_factor": 0.7,
-      "full_score_limit": 2,
-      "comment": "前2个次肌群得满分，之后按decay_factor递减"
+      "base_score": 2.0,
+      "comment": "次肌群基础分，将被肌群数量分摊"
+    },
+    "common_exercise_bonus": {
+      "score": 2.0,
+      "comment": "常用动作额外加分"
     }
   },
   "position_scores": {
-    "compound": [5, 3, 1, 0, -2],
-    "isolation": [-3, -1, 1, 2, 2],
-    "free_weight": [3, 2, 1, 0, 0],
-    "machine": [0, 0, 1, 1, 2]
+    "major_muscle": {
+      "scores": [8, 5, 0, 0, 0],
+      "comment": "大肌群动作在不同位置的得分"
+    },
+    "minor_muscle": {
+      "scores": [0, 0, 0, 5, 8],
+      "comment": "小肌群动作在不同位置的得分"
+    },
+    "compound": {
+      "scores": [8, 5, 0, 0, 0],
+      "comment": "复合动作在不同位置的得分"
+    },
+    "isolation": {
+      "scores": [0, 0, 0, 5, 8],
+      "comment": "孤立动作在不同位置的得分"
+    },
+    "free_weight": {
+      "scores": [3, 2, 0, -2, -3],
+      "comment": "自由重量在不同位置的得分"
+    }
   },
   "diversity_rules": {
-    "bilateral_balance": {
-      "thresholds": [0, 1, 2, 3, 4, 5],
-      "bilateral_bonus": [3, 2, 0, 0, 0, 0],
-      "unilateral_bonus": [0, 0, 0, 0, 2, 3],
-      "comment": "根据已选双侧动作数量，给予相应加分"
+    "balance_threshold": 3,
+    "balance_penalty": -3,
+    "rules": {
+      "bilateral_balance": {
+        "comment": "单双侧平衡：>3个时相应类型-3分"
+      },
+      "compound_balance": {
+        "comment": "复合/孤立平衡：>3个时相应类型-3分"
+      },
+      "equipment_balance": {
+        "comment": "器械/自由平衡：>3个时相应类型-3分"
+      }
     },
-    "compound_balance": {
-      "min_compound_for_bonus": 2,
-      "compound_threshold": 3,
-      "compound_bonus": 2,
-      "isolation_bonus": 2
-    },
-    "equipment_balance": {
-      "min_machine_for_bonus": 1,
-      "machine_threshold": 3,
-      "machine_bonus": 1,
-      "free_weight_bonus": 1
-    },
-    "same_family_penalty": -5,
-    "same_exercise_penalty": -8,
-    "core_exercise_bonus": {
-      "positions": [0, 1, 2, 3, 4],
-      "bonus_scores": [8, 6, 4, 3, 3],
-      "comment": "所有位置都给核心动作加分，前面位置加分更多"
-    },
-    "compound_position_bonus": {
-      "positions": [0, 1, 2, 3, 4],
-      "compound_extra": [4, 3, 1, 0, -1],
-      "isolation_extra": [-3, -2, 0, 1, 2],
-      "comment": "额外的位置加分，强化前面选复合、后面选孤立"
+    "penalties": {
+      "same_family": -10,
+      "weekly_repeat": -8,
+      "same_muscle_group": -1,
+      "comment": "同族动作-10分，全周重复-8分，同肌群动作每个-1分"
+    }
+  },
+  "algorithm_params": {
+    "exercises_per_day": 5,
+    "default_muscle_preference": 1.0,
+    "muscle_preference_range": {
+      "min": 1.0,
+      "max": 1.2
     }
   }
 }

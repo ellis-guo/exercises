@@ -11,9 +11,6 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 # Windows控制台UTF-8设置
 if sys.platform.startswith('win'):
     import locale
-    # 设置Python的默认编码
-    if hasattr(sys, 'setdefaultencoding'):
-        sys.setdefaultencoding('utf-8')
     # 设置Windows控制台代码页
     os.system('chcp 65001 > nul 2>&1')  # 静默执行
     # 设置环境变量
@@ -23,37 +20,22 @@ if sys.platform.startswith('win'):
 class GreedyWorkoutSelector:
     # ========== 用户配置区 ==========
     # 训练天数设置 (1-7)
-    TRAINING_DAYS = 6
+    TRAINING_DAYS = 2
 
-    # 肌群系数预设（方便修改）
-    DEFAULT_MUSCLE_PREFERENCES = {
-        "abdominal": 1.0,
-        "bicep": 1.0,
-        "calf": 1.2,
+    # 肌群系数预设（基于preferenceMapping的大类）
+    # 可选值：chest, back, shoulder, arm, leg, core
+    MUSCLE_PREFERENCES = {
         "chest": 1.0,
-        "forearm - inner": 1.0,
-        "forearm - outer": 1.0,
-        "glute": 1.0,
-        "hamstring": 1.0,
-        "lat": 1.0,
-        "lower back": 1.0,
-        "oblique": 1.0,
-        "quad": 1.0,
-        "rotator cuff - back": 1.0,
-        "rotator cuff - front": 1.0,
-        "shoulder - back": 1.5,
-        "shoulder - front": 1.5,
-        "shoulder - side": 1.5,
-        "thigh - inner": 1.2,
-        "thigh - outer": 1.2,
-        "trap": 1.0,
-        "tricep": 1.0
+        "back": 1.0,
+        "shoulder": 1.2,  # 示例：肩部偏好1.5倍
+        "arm": 1.0,
+        "leg": 1.0,       # 示例：腿部偏好1.2倍
+        "core": 1.2
     }
 
-    # 排除的动作（因为没有器械或其他原因不做的动作）
-    # 可以使用动作ID(pk)或动作名称
+    # 排除的动作（使用动作ID）
     EXCLUDED_EXERCISES = {
-        35
+        35  # 示例：排除 Rotational Throw – Medicine Ball
     }
     # ========== 配置区结束 ==========
 
@@ -61,45 +43,29 @@ class GreedyWorkoutSelector:
         # 获取当前文件所在目录
         current_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # 加载所有需要的文件 - 明确指定UTF-8编码
+        # 加载所有需要的文件
         self.exercises = self._load_json(
             os.path.join(current_dir, 'strength.json'))
         self.config = self._load_json(os.path.join(current_dir, 'config.json'))
 
         # 加载分类文件
         classification_dir = os.path.join(current_dir, 'classification')
+
+        # 加载新的映射文件（在classification文件夹中）
+        self.category_mapping = self._load_json(
+            os.path.join(classification_dir, 'categoryMapping.json'))
+        self.preference_mapping = self._load_json(
+            os.path.join(classification_dir, 'preferenceMapping.json'))
+        self.training_templates = self._load_json(
+            os.path.join(classification_dir, 'trainingTemplates.json'))
+
         self.classifications = {
-            'upper_lower': self._load_json(os.path.join(classification_dir, 'ontology1_upper_lower.json')),
-            'ppl': self._load_json(os.path.join(classification_dir, 'ontology2_PPL.json')),
-            'chest_shoulder_back_armsabs': self._load_json(os.path.join(classification_dir, 'ontology3_chestShoulder_back_armsAbs.json')),
-            'chest_legs_back_arms_shoulderscore': self._load_json(os.path.join(classification_dir, 'ontology4_chest_legs_back_arms_shouldersCore.json')),
-            'laterality': self._load_json(os.path.join(classification_dir, 'type1_laterality.json')),
-            'equipment': self._load_json(os.path.join(classification_dir, 'type2_equipmentMode.json')),
-            'compound_isolation': self._load_json(os.path.join(classification_dir, 'type3_compoundIsolation.json')),
-            'movement_family': self._load_json(os.path.join(classification_dir, 'type4_movementFamily.json')),
-            'common': self._load_json(os.path.join(classification_dir, 'type5_isCommon.json'))
-        }
-
-        # 定义训练模板
-        self.template_mapping = {
-            1: None,  # 所有肌群一起
-            2: 'upper_lower',
-            3: 'ppl',
-            4: 'chest_shoulder_back_armsabs',
-            5: 'chest_legs_back_arms_shoulderscore',
-            6: 'ppl',  # PPL×2
-            7: 'ppl'   # PPL×2
-        }
-
-        # 定义训练计划
-        self.schedules = {
-            1: ["Full Body"],
-            2: ["upper", "lower"],
-            3: ["push", "pull", "legs"],
-            4: ["chest_shoulder", "back", "arms_abs", "legs"],
-            5: ["chest", "legs", "back", "arms", "shoulders_core"],
-            6: ["push", "pull", "legs", "push", "pull", "legs"],
-            7: ["push", "pull", "legs", "push", "pull", "legs", "rest"]
+            'major': self._load_json(os.path.join(classification_dir, 'type1_isMajor.json')),
+            'compound': self._load_json(os.path.join(classification_dir, 'type2_isCompound.json')),
+            'single': self._load_json(os.path.join(classification_dir, 'type3_isSingle.json')),
+            'machine': self._load_json(os.path.join(classification_dir, 'type4_isMachine.json')),
+            'common': self._load_json(os.path.join(classification_dir, 'type5_isCommon.json')),
+            'family': self._load_json(os.path.join(classification_dir, 'type6_movementFamily.json'))
         }
 
     def _load_json(self, filepath: str) -> Dict:
@@ -112,82 +78,97 @@ class GreedyWorkoutSelector:
         try:
             print(text)
         except UnicodeEncodeError:
-            # 如果直接打印失败，尝试编码后再打印
             print(text.encode('utf-8', errors='replace').decode('utf-8'))
 
     def generate_weekly_plan(self) -> Dict:
-        """生成一周的训练计划，包含分数信息"""
+        """生成一周的训练计划"""
         training_days = self.TRAINING_DAYS
 
-        # 使用预设的肌群偏好
-        muscle_preferences = self.DEFAULT_MUSCLE_PREFERENCES.copy()
-
-        # 获取对应的训练模板
-        template_name = self.template_mapping[training_days]
-        schedule = self.schedules[training_days]
+        # 获取训练模板
+        template = self.training_templates[str(training_days)]
 
         weekly_plan = {}
         global_selected_ids = set()  # 追踪整周已选动作，避免重复
 
-        for day_index, day_type in enumerate(schedule):
-            if day_type == "rest":
-                weekly_plan[f"Day {day_index + 1}"] = {
+        for day_index, muscle_groups in enumerate(template):
+            day_name = f"Day {day_index + 1}"
+
+            # 休息日
+            if not muscle_groups:
+                weekly_plan[day_name] = {
                     "type": "Rest Day",
                     "exercises": [],
                     "total_score": 0
                 }
-            else:
-                # 为这一天选择动作（包含分数）
-                exercises_with_scores = self._select_exercises_for_day(
-                    day_index,
-                    day_type,
-                    template_name,
-                    muscle_preferences,
-                    global_selected_ids  # 传递全局已选动作集合
-                )
+                continue
 
-                # 更新全局已选动作集合
-                for ex in exercises_with_scores:
-                    global_selected_ids.add(ex['pk'])
+            # 为这一天选择动作
+            exercises_with_scores = self._select_exercises_for_day(
+                muscle_groups,
+                global_selected_ids
+            )
 
-                # 计算当日总分
-                total_day_score = sum(ex['score']
-                                      for ex in exercises_with_scores)
+            # 更新全局已选动作集合
+            for ex in exercises_with_scores:
+                global_selected_ids.add(ex['pk'])
 
-                weekly_plan[f"Day {day_index + 1}"] = {
-                    "type": day_type.replace('_', ' ').title(),
-                    "exercises": exercises_with_scores,
-                    "total_score": round(total_day_score, 2)
-                }
+            # 计算当日总分
+            total_day_score = sum(ex['score'] for ex in exercises_with_scores)
+
+            # 生成训练类型描述
+            day_type = self._generate_day_type(muscle_groups)
+
+            weekly_plan[day_name] = {
+                "type": day_type,
+                "muscle_groups": muscle_groups,
+                "exercises": exercises_with_scores,
+                "total_score": round(total_day_score, 2)
+            }
 
         return weekly_plan
 
-    def _is_exercise_excluded(self, exercise: Dict) -> bool:
-        """检查动作是否在排除列表中"""
-        # 检查ID
-        if exercise['pk'] in self.EXCLUDED_EXERCISES:
-            return True
+    def _generate_day_type(self, muscle_groups: List[str]) -> str:
+        """根据肌群列表生成训练日类型描述"""
+        muscle_names = {
+            "chest": "Chest",
+            "back": "Back",
+            "shoulder": "Shoulders",
+            "tricep": "Triceps",
+            "bicep": "Biceps",
+            "legs": "Legs",
+            "arm": "Arms",
+            "core": "Core"
+        }
 
-        # 检查名称（部分匹配）
-        for excluded in self.EXCLUDED_EXERCISES:
-            if isinstance(excluded, str):
-                # 如果是字符串，检查是否包含在动作名称中
-                if excluded.lower() in exercise['name'].lower():
-                    return True
+        names = [muscle_names.get(mg, mg.title()) for mg in muscle_groups]
 
-        return False
-
-    def _select_exercises_for_day(self, day_index: int, day_type: str,
-                                  template_name: str, muscle_preferences: Dict,
-                                  global_selected_ids: Set[int]) -> List[Dict]:
-        """为特定的一天选择5个动作，返回包含分数的列表"""
-        # 1. 获取今天要训练的动作ID列表
-        if template_name:
-            template_data = self.classifications[template_name]
-            exercise_ids = template_data.get(day_type, [])
+        if len(names) == 1:
+            return names[0]
+        elif len(names) == 2:
+            return f"{names[0]} & {names[1]}"
         else:
-            # 训练天数为1时，使用所有动作
-            exercise_ids = [ex['pk'] for ex in self.exercises]
+            return f"{', '.join(names[:-1])} & {names[-1]}"
+
+    def _get_muscle_preference(self, muscle: str) -> float:
+        """获取具体肌群的偏好系数"""
+        # 找出这个具体肌群属于哪个大类
+        for category, muscles in self.preference_mapping.items():
+            if muscle in muscles:
+                return self.MUSCLE_PREFERENCES.get(category, 1.0)
+        return 1.0
+
+    def _select_exercises_for_day(self, muscle_groups: List[str],
+                                  global_selected_ids: Set[int]) -> List[Dict]:
+        """为特定的一天选择5个动作"""
+        # 1. 获取今天要训练的动作ID列表
+        exercise_ids = set()
+        for muscle_group in muscle_groups:
+            if muscle_group in self.category_mapping:
+                exercise_ids.update(self.category_mapping[muscle_group])
+
+        # 如果是全身训练
+        if not exercise_ids or muscle_groups == ["all"]:
+            exercise_ids = {ex['pk'] for ex in self.exercises}
 
         # 2. 计算每个动作的静态分数
         exercise_scores = {}
@@ -195,12 +176,10 @@ class GreedyWorkoutSelector:
             exercise = self._get_exercise_by_id(exercise_id)
             # 检查是否被排除
             if exercise and not self._is_exercise_excluded(exercise):
-                static_score = self._calculate_static_score(
-                    exercise, muscle_preferences)
+                static_score = self._calculate_static_score(exercise)
                 exercise_scores[exercise_id] = {
                     'exercise': exercise,
-                    'static_score': static_score,
-                    'total_score': static_score  # 初始总分等于静态分数
+                    'static_score': static_score
                 }
 
         # 3. 贪心选择5个动作
@@ -208,7 +187,7 @@ class GreedyWorkoutSelector:
         selected_ids = set()
         selected_families = set()
 
-        for position in range(5):
+        for position in range(self.config['algorithm_params']['exercises_per_day']):
             best_exercise_id = None
             best_score = float('-inf')
             best_dynamic_score = 0
@@ -224,7 +203,7 @@ class GreedyWorkoutSelector:
                     position,
                     selected_exercises,
                     selected_families,
-                    global_selected_ids  # 传递全局已选动作集合
+                    global_selected_ids
                 )
 
                 total_score = data['static_score'] + dynamic_score
@@ -240,7 +219,7 @@ class GreedyWorkoutSelector:
 
                 # 创建包含分数信息的动作记录
                 exercise_with_score = {
-                    'pk': selected_exercise['pk'],  # 添加pk
+                    'pk': selected_exercise['pk'],
                     'name': selected_exercise['name'],
                     'primaryMuscles': selected_exercise['primaryMuscles'],
                     'secondaryMuscles': selected_exercise.get('secondaryMuscles', []),
@@ -267,43 +246,37 @@ class GreedyWorkoutSelector:
                 return exercise
         return None
 
-    def _calculate_static_score(self, exercise: Dict, muscle_preferences: Dict) -> float:
-        """计算静态分数 - 使用递减机制"""
+    def _is_exercise_excluded(self, exercise: Dict) -> bool:
+        """检查动作是否在排除列表中"""
+        return exercise['pk'] in self.EXCLUDED_EXERCISES
+
+    def _calculate_static_score(self, exercise: Dict) -> float:
+        """计算静态分数 - 使用分摊机制"""
         score = 0
 
         # 从配置文件获取参数
-        primary_config = self.config['scoring_weights']['primary_muscle']
-        secondary_config = self.config['scoring_weights']['secondary_muscle']
+        primary_base = self.config['scoring_weights']['primary_muscle']['base_score']
+        secondary_base = self.config['scoring_weights']['secondary_muscle']['base_score']
 
-        # 主肌群分数（递减机制）
+        # 主肌群分数（分摊机制）
         primary_muscles = exercise.get('primaryMuscles', [])
-        for i, muscle in enumerate(primary_muscles):
-            if i < primary_config['full_score_limit']:
-                # 前N个肌群得满分
-                muscle_score = primary_config['base_score']
-            else:
-                # 之后的肌群递减
-                decay_times = i - primary_config['full_score_limit'] + 1
-                muscle_score = primary_config['base_score'] * \
-                    (primary_config['decay_factor'] ** decay_times)
+        if primary_muscles:
+            score_per_muscle = primary_base / len(primary_muscles)
+            for muscle in primary_muscles:
+                preference = self._get_muscle_preference(muscle)
+                score += score_per_muscle * preference
 
-            preference = muscle_preferences.get(muscle, 1.0)
-            score += muscle_score * preference
-
-        # 次肌群分数（递减机制）
+        # 次肌群分数（分摊机制）
         secondary_muscles = exercise.get('secondaryMuscles', [])
-        for i, muscle in enumerate(secondary_muscles):
-            if i < secondary_config['full_score_limit']:
-                # 前N个肌群得满分
-                muscle_score = secondary_config['base_score']
-            else:
-                # 之后的肌群递减
-                decay_times = i - secondary_config['full_score_limit'] + 1
-                muscle_score = secondary_config['base_score'] * \
-                    (secondary_config['decay_factor'] ** decay_times)
+        if secondary_muscles:
+            score_per_muscle = secondary_base / len(secondary_muscles)
+            for muscle in secondary_muscles:
+                preference = self._get_muscle_preference(muscle)
+                score += score_per_muscle * preference
 
-            preference = muscle_preferences.get(muscle, 1.0)
-            score += muscle_score * preference
+        # 常用动作加分
+        if exercise['pk'] in self.classifications['common']['Common']:
+            score += self.config['scoring_weights']['common_exercise_bonus']['score']
 
         return score
 
@@ -311,115 +284,108 @@ class GreedyWorkoutSelector:
                                  selected_exercises: List[Dict],
                                  selected_families: Set[str],
                                  global_selected_ids: Set[int]) -> float:
-        """计算动态分数"""
+        """计算动态分数 - 两层结构"""
         score = 0
         exercise_id = exercise['pk']
 
-        # 位置加分 - 从配置文件读取
+        # === 第一层：位置相关得分 ===
         position_scores = self.config['position_scores']
 
-        # 复合/孤立
-        if exercise_id in self.classifications['compound_isolation']['compound']:
-            score += position_scores['compound'][position]
-        elif exercise_id in self.classifications['compound_isolation']['isolation']:
-            score += position_scores['isolation'][position]
+        # 大肌群动作位置得分
+        if exercise_id in self.classifications['major']['Major']:
+            score += position_scores['major_muscle']['scores'][position]
+        # 小肌群动作位置得分
+        elif exercise_id in self.classifications['major']['Minor']:
+            score += position_scores['minor_muscle']['scores'][position]
 
-        # 自由/器械
-        if exercise_id in self.classifications['equipment']['free']:
-            score += position_scores['free_weight'][position]
-        elif exercise_id in self.classifications['equipment']['equipment']:
-            score += position_scores['machine'][position]
+        # 复合动作位置得分
+        if exercise_id in self.classifications['compound']['compound']:
+            score += position_scores['compound']['scores'][position]
+        # 孤立动作位置得分
+        elif exercise_id in self.classifications['compound']['isolation']:
+            score += position_scores['isolation']['scores'][position]
 
+        # 自由重量位置得分
+        if exercise_id in self.classifications['machine']['free']:
+            score += position_scores['free_weight']['scores'][position]
+
+        # === 第二层：多样性平衡 ===
         # 统计已选动作的特征
         bilateral_count = 0
         compound_count = 0
         machine_count = 0
 
+        # 统计已选动作覆盖的肌群（基于categoryMapping）
+        selected_muscle_groups = set()
         for ex in selected_exercises:
             ex_id = ex['pk']
-            if ex_id in self.classifications['laterality']['bilateral']:
+            # 找出这个动作属于哪些肌群
+            for muscle_group, exercise_ids in self.category_mapping.items():
+                if ex_id in exercise_ids:
+                    selected_muscle_groups.add(muscle_group)
+
+            if ex_id in self.classifications['single']['bilateral']:
                 bilateral_count += 1
-            if ex_id in self.classifications['compound_isolation']['compound']:
+            if ex_id in self.classifications['compound']['compound']:
                 compound_count += 1
-            if ex_id in self.classifications['equipment']['equipment']:
+            if ex_id in self.classifications['machine']['equipment']:
                 machine_count += 1
 
         # 从配置文件读取多样性规则
         diversity = self.config['diversity_rules']
+        threshold = diversity['balance_threshold']
+        penalty = diversity['balance_penalty']
 
-        # 单双侧平衡加分 - 使用新的渐进式规则
-        bilateral_balance = diversity['bilateral_balance']
-        if bilateral_count < len(bilateral_balance['thresholds']):
-            if exercise_id in self.classifications['laterality']['bilateral']:
-                score += bilateral_balance['bilateral_bonus'][bilateral_count]
-            elif exercise_id in self.classifications['laterality']['single_sided']:
-                score += bilateral_balance['unilateral_bonus'][bilateral_count]
+        # 单双侧平衡（只惩罚，不奖励）
+        if exercise_id in self.classifications['single']['bilateral'] and bilateral_count >= threshold:
+            score += penalty  # 双侧动作超过阈值，惩罚
+        elif exercise_id in self.classifications['single']['single_sided'] and (len(selected_exercises) - bilateral_count) >= threshold:
+            score += penalty  # 单侧动作超过阈值，惩罚
 
-        # 复合/孤立平衡加分
-        compound_balance = diversity['compound_balance']
-        if compound_count < compound_balance['min_compound_for_bonus']:
-            if exercise_id in self.classifications['compound_isolation']['compound']:
-                score += compound_balance['compound_bonus']
-        elif compound_count >= compound_balance['compound_threshold']:
-            if exercise_id in self.classifications['compound_isolation']['isolation']:
-                score += compound_balance['isolation_bonus']
+        # 复合/孤立平衡（只惩罚，不奖励）
+        if exercise_id in self.classifications['compound']['compound'] and compound_count >= threshold:
+            score += penalty  # 复合动作超过阈值，惩罚
+        elif exercise_id in self.classifications['compound']['isolation'] and (len(selected_exercises) - compound_count) >= threshold:
+            score += penalty  # 孤立动作超过阈值，惩罚
 
-        # 器械/自由平衡加分
-        equipment_balance = diversity['equipment_balance']
-        if machine_count < equipment_balance['min_machine_for_bonus']:
-            if exercise_id in self.classifications['equipment']['equipment']:
-                score += equipment_balance['machine_bonus']
-        elif machine_count >= equipment_balance['machine_threshold']:
-            if exercise_id in self.classifications['equipment']['free']:
-                score += equipment_balance['free_weight_bonus']
+        # 器械/自由平衡（只惩罚，不奖励）
+        if exercise_id in self.classifications['machine']['equipment'] and machine_count >= threshold:
+            score += penalty  # 器械动作超过阈值，惩罚
+        elif exercise_id in self.classifications['machine']['free'] and (len(selected_exercises) - machine_count) >= threshold:
+            score += penalty  # 自由动作超过阈值，惩罚
 
-        # 同族动作扣分
+        # === 惩罚机制 ===
+        penalties = diversity['penalties']
+
+        # 同族动作惩罚
         family = self._get_exercise_family(exercise_id)
         if family and family in selected_families:
-            score += diversity['same_family_penalty']
+            score += penalties['same_family']
 
-        # 全周重复动作扣分
+        # 全周重复动作惩罚
         if exercise_id in global_selected_ids:
-            score += diversity['same_exercise_penalty']
+            score += penalties['weekly_repeat']
 
-        # 核心动作加分
-        core_bonus_config = diversity.get('core_exercise_bonus', {})
-        if exercise_id in self.classifications['common'].get('Common', []):
-            positions = core_bonus_config.get('positions', [])
-            bonus_scores = core_bonus_config.get('bonus_scores', [])
-            if position in positions:
-                pos_index = positions.index(position)
-                if pos_index < len(bonus_scores):
-                    score += bonus_scores[pos_index]
+        # 同肌群动作惩罚：计算当前动作有多少肌群已被选中
+        muscle_group_overlap = 0
+        for muscle_group, exercise_ids in self.category_mapping.items():
+            if exercise_id in exercise_ids and muscle_group in selected_muscle_groups:
+                muscle_group_overlap += 1
 
-        # 复合/孤立动作额外位置加分
-        compound_position_config = diversity.get('compound_position_bonus', {})
-        if compound_position_config:
-            positions = compound_position_config.get('positions', [])
-            if position in positions:
-                pos_index = positions.index(position)
-                if exercise_id in self.classifications['compound_isolation']['compound']:
-                    compound_extra = compound_position_config.get(
-                        'compound_extra', [])
-                    if pos_index < len(compound_extra):
-                        score += compound_extra[pos_index]
-                elif exercise_id in self.classifications['compound_isolation']['isolation']:
-                    isolation_extra = compound_position_config.get(
-                        'isolation_extra', [])
-                    if pos_index < len(isolation_extra):
-                        score += isolation_extra[pos_index]
+        if muscle_group_overlap > 0:
+            score += penalties['same_muscle_group'] * muscle_group_overlap
 
         return score
 
     def _get_exercise_family(self, exercise_id: int) -> str:
         """获取动作所属的族"""
-        for family_name, exercise_ids in self.classifications['movement_family'].items():
+        for family_name, exercise_ids in self.classifications['family'].items():
             if exercise_id in exercise_ids:
                 return family_name
         return None
 
     def print_detailed_plan(self, weekly_plan: Dict) -> None:
-        """打印详细的训练计划，包含分数"""
+        """打印详细的训练计划"""
         self._safe_print("\n" + "="*80)
         self._safe_print("Weekly Workout Plan (Generated by Greedy Algorithm)")
         self._safe_print("="*80)
@@ -429,8 +395,8 @@ class GreedyWorkoutSelector:
             1: "Full Body",
             2: "Upper/Lower Split",
             3: "Push/Pull/Legs",
-            4: "Chest&Shoulder/Back/Arms&Abs/Legs",
-            5: "Chest/Legs/Back/Arms/Shoulders&Core",
+            4: "Push/Pull x2",
+            5: "Bro Split",
             6: "Push/Pull/Legs x2",
             7: "Push/Pull/Legs x2 + Rest"
         }
@@ -439,30 +405,30 @@ class GreedyWorkoutSelector:
 
         # 显示当前使用的肌群系数
         self._safe_print("\nCurrent Muscle Preferences:")
-        non_default = {
-            k: v for k, v in self.DEFAULT_MUSCLE_PREFERENCES.items() if v != 1.0}
+        non_default = {k: v for k,
+                       v in self.MUSCLE_PREFERENCES.items() if v != 1.0}
         if non_default:
-            for muscle, coef in non_default.items():
+            for muscle, coef in sorted(non_default.items()):
                 self._safe_print(f"  {muscle}: {coef}")
         else:
-            self._safe_print("  All muscles: 1.0 (default)")
+            self._safe_print("  All muscle groups: 1.0 (default)")
 
         # 显示排除的动作
         if self.EXCLUDED_EXERCISES:
             self._safe_print("\nExcluded Exercises:")
-            for excluded in self.EXCLUDED_EXERCISES:
-                if isinstance(excluded, int):
-                    # 如果是ID，尝试找到对应的动作名称
-                    ex = self._get_exercise_by_id(excluded)
-                    if ex:
-                        self._safe_print(f"  - [{excluded}] {ex['name']}")
-                    else:
-                        self._safe_print(f"  - ID: {excluded}")
+            for excluded_id in self.EXCLUDED_EXERCISES:
+                ex = self._get_exercise_by_id(excluded_id)
+                if ex:
+                    self._safe_print(f"  - [{excluded_id}] {ex['name']}")
                 else:
-                    self._safe_print(f"  - Contains: '{excluded}'")
+                    self._safe_print(f"  - ID: {excluded_id}")
 
+        # 打印每日计划
         for day, plan in weekly_plan.items():
             self._safe_print(f"\n{day}: {plan['type']}")
+            if 'muscle_groups' in plan and plan['muscle_groups']:
+                self._safe_print(
+                    f"Target Muscles: {', '.join(plan['muscle_groups'])}")
             self._safe_print(f"Daily Total Score: {plan['total_score']}")
             self._safe_print("-" * 60)
 
@@ -480,49 +446,40 @@ class GreedyWorkoutSelector:
             else:
                 self._safe_print("   Rest and Recovery!")
 
-    def print_static_score_analysis(self) -> None:
-        """打印静态分数分析，帮助理解递减机制"""
+    def print_scoring_explanation(self) -> None:
+        """打印评分机制说明"""
         self._safe_print("\n" + "="*60)
-        self._safe_print("Static Score Analysis (Decay Mechanism)")
+        self._safe_print("Scoring Mechanism Explanation")
         self._safe_print("="*60)
 
-        # 示例：展示不同肌群数量的动作得分
-        examples = [
-            {"name": "Bicep Curl", "primary": 1, "secondary": 1},
-            {"name": "Bench Press", "primary": 2, "secondary": 1},
-            {"name": "Squat", "primary": 4, "secondary": 1},
-            {"name": "Clean and Jerk", "primary": 5, "secondary": 7}
-        ]
+        self._safe_print(
+            "\nStatic Score (Muscle-based with sharing mechanism):")
+        self._safe_print(
+            "  - Primary muscles: 3.0 ÷ number of muscles × preference")
+        self._safe_print(
+            "  - Secondary muscles: 2.0 ÷ number of muscles × preference")
+        self._safe_print("  - Common exercises: +2.0 bonus")
 
-        primary_config = self.config['scoring_weights']['primary_muscle']
-        secondary_config = self.config['scoring_weights']['secondary_muscle']
+        self._safe_print("\nDynamic Score Layer 1 (Position-based):")
+        self._safe_print("  - Major muscle exercises: [+8, +5, 0, 0, 0]")
+        self._safe_print("  - Minor muscle exercises: [0, 0, 0, +5, +8]")
+        self._safe_print("  - Compound exercises: [+8, +5, 0, 0, 0]")
+        self._safe_print("  - Isolation exercises: [0, 0, 0, +5, +8]")
+        self._safe_print("  - Free weight exercises: [+3, +2, 0, -2, -3]")
 
-        for ex in examples:
-            primary_score = 0
-            for i in range(ex['primary']):
-                if i < primary_config['full_score_limit']:
-                    primary_score += primary_config['base_score']
-                else:
-                    decay_times = i - primary_config['full_score_limit'] + 1
-                    primary_score += primary_config['base_score'] * \
-                        (primary_config['decay_factor'] ** decay_times)
+        self._safe_print("\nDynamic Score Layer 2 (Diversity balance):")
+        self._safe_print("  - Bilateral: >3 selected → -3 penalty")
+        self._safe_print("  - Unilateral: >3 selected → -3 penalty")
+        self._safe_print("  - Compound: >3 selected → -3 penalty")
+        self._safe_print("  - Isolation: >3 selected → -3 penalty")
+        self._safe_print("  - Machine: >3 selected → -3 penalty")
+        self._safe_print("  - Free weight: >3 selected → -3 penalty")
 
-            secondary_score = 0
-            for i in range(ex['secondary']):
-                if i < secondary_config['full_score_limit']:
-                    secondary_score += secondary_config['base_score']
-                else:
-                    decay_times = i - secondary_config['full_score_limit'] + 1
-                    secondary_score += secondary_config['base_score'] * (
-                        secondary_config['decay_factor'] ** decay_times)
-
-            total = primary_score + secondary_score
-            self._safe_print(f"\n{ex['name']}:")
-            self._safe_print(
-                f"  Primary muscles: {ex['primary']} → {primary_score:.2f} points")
-            self._safe_print(
-                f"  Secondary muscles: {ex['secondary']} → {secondary_score:.2f} points")
-            self._safe_print(f"  Total static score: {total:.2f} points")
+        self._safe_print("\nPenalties:")
+        self._safe_print("  - Same movement family: -10")
+        self._safe_print("  - Weekly repetition: -8")
+        self._safe_print(
+            "  - Same muscle group: -1 per overlapping muscle group")
 
 
 # 直接运行
@@ -537,3 +494,6 @@ if __name__ == "__main__":
 
     # 打印详细计划
     selector.print_detailed_plan(weekly_plan)
+
+    # 打印评分说明
+    selector.print_scoring_explanation()
