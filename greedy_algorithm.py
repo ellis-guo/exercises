@@ -20,17 +20,17 @@ if sys.platform.startswith('win'):
 class GreedyWorkoutSelector:
     # ========== 用户配置区 ==========
     # 训练天数设置 (1-7)
-    TRAINING_DAYS = 2
+    TRAINING_DAYS = 5
 
     # 肌群系数预设（基于preferenceMapping的大类）
     # 可选值：chest, back, shoulder, arm, leg, core
     MUSCLE_PREFERENCES = {
         "chest": 1.0,
         "back": 1.0,
-        "shoulder": 1.2,  # 示例：肩部偏好1.5倍
+        "shoulder": 1.0,
         "arm": 1.0,
-        "leg": 1.0,       # 示例：腿部偏好1.2倍
-        "core": 1.2
+        "leg": 1.0,
+        "core": 1.0
     }
 
     # 排除的动作（使用动作ID）
@@ -308,6 +308,9 @@ class GreedyWorkoutSelector:
         # 自由重量位置得分
         if exercise_id in self.classifications['machine']['free']:
             score += position_scores['free_weight']['scores'][position]
+        # 器械动作位置得分
+        elif exercise_id in self.classifications['machine']['equipment']:
+            score += position_scores['equipment']['scores'][position]
 
         # === 第二层：多样性平衡 ===
         # 统计已选动作的特征
@@ -465,7 +468,8 @@ class GreedyWorkoutSelector:
         self._safe_print("  - Minor muscle exercises: [0, 0, 0, +5, +8]")
         self._safe_print("  - Compound exercises: [+8, +5, 0, 0, 0]")
         self._safe_print("  - Isolation exercises: [0, 0, 0, +5, +8]")
-        self._safe_print("  - Free weight exercises: [+3, +2, 0, -2, -3]")
+        self._safe_print("  - Free weight exercises: [+3, +2, 0, 0, 0]")
+        self._safe_print("  - Equipment exercises: [0, 0, 0, +2, +3]")
 
         self._safe_print("\nDynamic Score Layer 2 (Diversity balance):")
         self._safe_print("  - Bilateral: >3 selected → -3 penalty")

@@ -1,67 +1,55 @@
 {
+  "algorithm_params": {
+    "exercises_per_day": 5,
+    "top_candidates_for_optimization": 20
+  },
   "scoring_weights": {
     "primary_muscle": {
       "base_score": 3.0,
-      "comment": "主肌群基础分，将被肌群数量分摊"
+      "description": "Base score divided by number of primary muscles"
     },
     "secondary_muscle": {
       "base_score": 2.0,
-      "comment": "次肌群基础分，将被肌群数量分摊"
+      "description": "Base score divided by number of secondary muscles"
     },
     "common_exercise_bonus": {
       "score": 2.0,
-      "comment": "常用动作额外加分"
+      "description": "Bonus for exercises in the Common list"
     }
   },
   "position_scores": {
     "major_muscle": {
       "scores": [8, 5, 0, 0, 0],
-      "comment": "大肌群动作在不同位置的得分"
+      "description": "Position scores for major muscle exercises"
     },
     "minor_muscle": {
       "scores": [0, 0, 0, 5, 8],
-      "comment": "小肌群动作在不同位置的得分"
+      "description": "Position scores for minor muscle exercises"
     },
     "compound": {
       "scores": [8, 5, 0, 0, 0],
-      "comment": "复合动作在不同位置的得分"
+      "description": "Position scores for compound exercises"
     },
     "isolation": {
       "scores": [0, 0, 0, 5, 8],
-      "comment": "孤立动作在不同位置的得分"
+      "description": "Position scores for isolation exercises"
     },
     "free_weight": {
-      "scores": [3, 2, 0, -2, -3],
-      "comment": "自由重量在不同位置的得分"
+      "scores": [3, 2, 0, 0, 0],
+      "description": "Position scores for free weight exercises"
+    },
+    "equipment": {
+      "scores": [0, 0, 0, 2, 3],
+      "description": "Position scores for equipment/machine exercises"
     }
   },
   "diversity_rules": {
     "balance_threshold": 3,
     "balance_penalty": -3,
-    "rules": {
-      "bilateral_balance": {
-        "comment": "单双侧平衡：>3个时相应类型-3分"
-      },
-      "compound_balance": {
-        "comment": "复合/孤立平衡：>3个时相应类型-3分"
-      },
-      "equipment_balance": {
-        "comment": "器械/自由平衡：>3个时相应类型-3分"
-      }
-    },
     "penalties": {
       "same_family": -10,
       "weekly_repeat": -8,
-      "same_muscle_group": -1,
-      "comment": "同族动作-10分，全周重复-8分，同肌群动作每个-1分"
-    }
-  },
-  "algorithm_params": {
-    "exercises_per_day": 5,
-    "default_muscle_preference": 1.0,
-    "muscle_preference_range": {
-      "min": 1.0,
-      "max": 1.2
+      "same_muscle_group": -1
     }
   }
 }
